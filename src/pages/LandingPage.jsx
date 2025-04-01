@@ -1,14 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function LandingPage() {
-  const [showLogin, setShowLogin] = useState(true); // default to login
+  const [showLogin, setShowLogin] = useState(true);
 
   const [signupData, setSignupData] = useState({
     name: "",
     email: "",
     password: "",
+    university_id: "", // added for dropdown
   });
-  const [loginData, setLoginData] = useState({ email: "", password: "" });
+
+  const [loginData, setLoginData] = useState({
+    email: "",
+    password: "",
+  });
+
+  const [universities, setUniversities] = useState([]);
+
+  const navigate = useNavigate();
+
+  // Fetch list of universities on component mount
+  useEffect(() => {
+    fetch("http://localhost:5000/api/universities")
+      .then((res) => res.json())
+      .then((data) => setUniversities(data))
+      .catch((err) => console.error("Failed to fetch universities", err));
+  }, []);
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -19,8 +37,9 @@ export default function LandingPage() {
         body: JSON.stringify(signupData),
       });
       const data = await res.json();
+
       alert("✅ Sign-up successful!");
-      console.log(data);
+      navigate("/events");
     } catch (err) {
       console.error(err);
       alert("Sign-up failed.");
@@ -39,7 +58,7 @@ export default function LandingPage() {
 
       if (res.ok) {
         alert("✅ Logged in!");
-        console.log(data);
+        navigate("/events");
       } else {
         alert(`❌ ${data.error}`);
       }
@@ -126,6 +145,23 @@ export default function LandingPage() {
                 }
                 required
               />
+
+              <select
+                className="w-full p-2 border rounded"
+                value={signupData.university_id}
+                onChange={(e) =>
+                  setSignupData({ ...signupData, university_id: e.target.value })
+                }
+                required
+              >
+                <option value="">Select your university</option>
+                {universities.map((uni) => (
+                  <option key={uni.id} value={uni.id}>
+                    {uni.name}
+                  </option>
+                ))}
+              </select>
+
               <button className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 cursor-pointer">
                 Sign Up
               </button>
@@ -142,6 +178,6 @@ export default function LandingPage() {
           )}
         </div>
       </div>
-      </div>
+    </div>
   );
 }
