@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import '../App.css';
+
 
 export default function EventsPage() {
   const [events, setEvents] = useState([]);
@@ -76,7 +78,7 @@ export default function EventsPage() {
         body: JSON.stringify({ userId: user.id, rsoId }),
       });
 
-      alert("✅ Left the RSO.");
+      alert("🏃 Left the RSO.");
       setShowLeaveModal(false);
       fetchRsos(user.id);
       fetchEvents(user.id);
@@ -153,7 +155,7 @@ export default function EventsPage() {
             onClick={() => setShowLeaveModal(true)}
             className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 cursor-pointer"
           >
-            Leave RSO
+            Leave an RSO
           </button>
           <button className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer">
             Create New RSO
@@ -188,7 +190,7 @@ export default function EventsPage() {
 
       {/* Join RSO Modal */}
       {showJoinModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow w-96">
             <h2 className="text-xl font-semibold mb-4">Join an RSO</h2>
             {availableRsos.length === 0 ? (
@@ -223,7 +225,7 @@ export default function EventsPage() {
 
       {/* Leave RSO Modal */}
       {showLeaveModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow w-96">
             <h2 className="text-xl font-semibold mb-4">Leave an RSO</h2>
             {rsos.length === 0 ? (
