@@ -320,23 +320,30 @@ export default function EventsPage() {
       {/* Event cards */}
       <div className="grid gap-4">
         {events.map((event) => (
-          <div key={event.id} className="bg-white p-4 rounded shadow">
-            <h2 className="text-xl font-semibold">{event.name}</h2>
-            <p className="text-sm text-gray-600 mb-1">
-              {event.category} | {event.visibility}
+          <div
+            key={event.id}
+            className="bg-white p-4 rounded shadow border-l-4 border-blue-600"
+          >
+            <h2 className="text-xl font-bold text-gray-900 mb-1">
+              {event.name}
+            </h2>
+
+            <p className="text-sm font-semibold text-blue-700 mb-2">
+              {event.visibility === "public"
+                ? "🌐 Public Event"
+                : event.visibility === "private"
+                ? `🏫 Private Event – ${universityName}`
+                : `🤝 RSO Event – ${event.rso_name}`}
             </p>
-            <p className="text-sm mb-1">
-              Hosted by:{" "}
-              <span className="font-medium text-blue-700">
-                {event.rso_name || "Public"}
-              </span>
+
+            <p className="text-gray-800 mb-2">{event.description}</p>
+
+            <p className="text-sm text-gray-700">
+              📅 {event.event_date} @ 🕒 {event.event_time}
             </p>
-            <p className="mb-2">{event.description}</p>
-            <p className="text-sm text-gray-500">
-              {event.event_date} @ {event.event_time}
-            </p>
-            <p className="text-sm text-gray-500 italic">
-              {event.location_name}
+
+            <p className="text-sm text-gray-700 italic">
+              📍 {event.location_name}
             </p>
           </div>
         ))}
