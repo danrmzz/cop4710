@@ -16,6 +16,52 @@ export default function EventsPage() {
 
   const [pendingCount, setPendingCount] = useState(0);
 
+  const [userRatings, setUserRatings] = useState({}); // { eventId: rating }
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [activeEventIdForComments, setActiveEventIdForComments] =
+    useState(null);
+  const [comments, setComments] = useState([]);
+
+  const handleRateEvent = async (eventId, rating) => {
+    try {
+      await fetch("http://localhost:5000/api/event-rating", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, eventId, rating }),
+      });
+
+      setUserRatings((prev) => ({ ...prev, [eventId]: rating }));
+    } catch (err) {
+      console.error("Rating failed", err);
+      alert("❌ Failed to submit rating");
+    }
+  };
+
+  const fetchRatings = async () => {
+    const res = await fetch(
+      `http://localhost:5000/api/user-ratings/${user.id}`
+    );
+    const data = await res.json();
+    const formatted = {};
+    data.forEach((r) => {
+      formatted[r.event_id] = r.rating;
+    });
+    setUserRatings(formatted);
+  };
+
+  fetchRatings();
+
+  const openCommentsModal = async (eventId) => {
+    setActiveEventIdForComments(eventId);
+    setShowCommentsModal(true);
+
+    const res = await fetch(
+      `http://localhost:5000/api/event-comments/${eventId}`
+    );
+    const data = await res.json();
+    setComments(data);
+  };
+
   const fetchPendingEvents = async () => {
     try {
       const res = await fetch("http://localhost:5000/api/unapproved-events");
@@ -519,6 +565,22 @@ export default function EventsPage() {
             <p className="text-sm text-gray-700 italic">
               📍 {event.location_name}
             </p>
+
+            {/* Star Rating */}
+            <StarRating
+              rating={userRatings[event.id] || 0}
+              onRate={(star) => handleRateEvent(event.id, star)}
+            />
+
+            {/* View Comments */}
+            <span
+              className="mt-2 text-blue-600 hover:text-blue-700 text-sm cursor-pointer inline-flex items-center gap-1 w-fit"
+              onClick={() => openCommentsModal(event.id)}
+            >
+              <span>💬</span>
+              <span className="underline">View Comments</span>
+            </span>
+
             {user.role === "super_admin" && (
               <button
                 onClick={() => handleDeleteApprovedEvent(event.id)}
@@ -897,6 +959,203 @@ export default function EventsPage() {
           </div>
         </div>
       )}
+
+      {showCommentsModal && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded shadow w-[30rem] max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4">Comments</h2>
+
+            {comments.length === 0 ? (
+              <p className="text-gray-500 italic">No comments yet.</p>
+            ) : (
+              <ul className="space-y-2 mb-4">
+                {comments.map((c) => (
+                  <li
+                    key={c.id}
+                    className="border p-2 rounded text-sm relative"
+                  >
+                    {c.user_id === user.id && c.editing ? (
+                      <>
+                        <textarea
+                          className="w-full p-1 border rounded mb-1 text-sm"
+                          value={c.editedText}
+                          onChange={(e) => {
+                            const newVal = e.target.value;
+                            setComments((prev) =>
+                              prev.map((item) =>
+                                item.id === c.id
+                                  ? { ...item, editedText: newVal }
+                                  : item
+                              )
+                            );
+                          }}
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 text-xs rounded cursor-pointer"
+                            onClick={async () => {
+                              await fetch(
+                                `http://localhost:5000/api/event-comment/${c.id}`,
+                                {
+                                  method: "PUT",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    userId: user.id,
+                                    comment: c.editedText,
+                                  }),
+                                }
+                              );
+                              openCommentsModal(activeEventIdForComments);
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="bg-gray-400 hover:bg-gray-500 text-white px-2 py-1 text-xs rounded cursor-pointer"
+                            onClick={() => {
+                              setComments((prev) =>
+                                prev.map((item) =>
+                                  item.id === c.id
+                                    ? { ...item, editing: false }
+                                    : item
+                                )
+                              );
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-gray-700">{c.comment}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          – {c.user_name || "User"} on{" "}
+                          <>
+                            {new Date(c.created_at).toLocaleDateString()} at{" "}
+                            {new Date(c.created_at).toLocaleTimeString([], {
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            })}
+                          </>
+                        </p>
+                        {c.user_id === user.id && (
+                          <div className="absolute top-2 right-2 flex gap-2">
+                            <button
+                              className="text-blue-500 text-xs no-underline cursor-pointer"
+                              onClick={() => {
+                                setComments((prev) =>
+                                  prev.map((item) =>
+                                    item.id === c.id
+                                      ? {
+                                          ...item,
+                                          editing: true,
+                                          editedText: item.comment,
+                                        }
+                                      : item
+                                  )
+                                );
+                              }}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              className="text-red-500 text-xs no-underline cursor-pointer"
+                              onClick={async () => {
+                                const confirmed = window.confirm(
+                                  "Delete this comment?"
+                                );
+                                if (!confirmed) return;
+                                await fetch(
+                                  `http://localhost:5000/api/event-comment/${c.id}`,
+                                  {
+                                    method: "DELETE",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({ userId: user.id }),
+                                  }
+                                );
+                                openCommentsModal(activeEventIdForComments); // Refresh list
+                              }}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Add Comment */}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const form = e.target;
+                const comment = form.comment.value.trim();
+                if (!comment) return;
+
+                await fetch("http://localhost:5000/api/event-comment", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    userId: user.id,
+                    eventId: activeEventIdForComments,
+                    comment,
+                  }),
+                });
+
+                form.reset();
+                openCommentsModal(activeEventIdForComments); // refresh comments
+              }}
+            >
+              <textarea
+                name="comment"
+                placeholder="Write your comment..."
+                className="w-full border rounded p-2 mb-2"
+                required
+              />
+              <button
+                type="submit"
+                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 cursor-pointer"
+              >
+                Post Comment
+              </button>
+            </form>
+
+            <button
+              onClick={() => setShowCommentsModal(false)}
+              className="mt-4 w-full bg-gray-400 text-white py-2 rounded hover:bg-gray-500 cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StarRating({ rating, onRate }) {
+  return (
+    <div className="flex gap-1 mt-2">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <span
+          key={star}
+          className={`cursor-pointer text-xl ${
+            star <= rating ? "text-yellow-400" : "text-gray-400"
+          }`}
+          onClick={() => onRate(star)}
+        >
+          ★
+        </span>
+      ))}
     </div>
   );
 }

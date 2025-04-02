@@ -526,6 +526,140 @@ app.post("/api/delete-event", async (req, res) => {
   }
 });
 
+app.post("/api/event-rating", async (req, res) => {
+  const { userId, eventId, rating } = req.body;
+
+  if (!userId || !eventId || !rating || rating < 1 || rating > 5) {
+    return res.status(400).json({ error: "Invalid rating data" });
+  }
+
+  try {
+    await db.query(
+      `
+      INSERT INTO event_ratings (user_id, event_id, rating)
+      VALUES (?, ?, ?)
+      ON DUPLICATE KEY UPDATE rating = VALUES(rating)
+    `,
+      [userId, eventId, rating]
+    );
+
+    res.json({ message: "Rating saved" });
+  } catch (err) {
+    console.error("❌ Failed to save rating:", err);
+    res.status(500).json({ error: "Server error saving rating" });
+  }
+});
+
+app.get("/api/user-ratings/:userId", async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    const [ratings] = await db.query(
+      "SELECT event_id, rating FROM event_ratings WHERE user_id = ?",
+      [userId]
+    );
+
+    res.json(ratings);
+  } catch (err) {
+    console.error("❌ Failed to fetch user ratings:", err);
+    res.status(500).json({ error: "Error fetching ratings" });
+  }
+});
+
+app.post("/api/event-comment", async (req, res) => {
+  const { userId, eventId, comment } = req.body;
+
+  if (!userId || !eventId || !comment || comment.trim() === "") {
+    return res.status(400).json({ error: "Invalid comment data" });
+  }
+
+  try {
+    await db.query(
+      "INSERT INTO event_comments (user_id, event_id, comment) VALUES (?, ?, ?)",
+      [userId, eventId, comment]
+    );
+
+    res.status(201).json({ message: "Comment added" });
+  } catch (err) {
+    console.error("❌ Failed to add comment:", err);
+    res.status(500).json({ error: "Server error adding comment" });
+  }
+});
+
+app.get("/api/event-comments/:eventId", async (req, res) => {
+  const eventId = req.params.eventId;
+
+  try {
+    const [comments] = await db.query(
+      `SELECT c.*, u.name AS user_name
+       FROM event_comments c
+       JOIN users u ON c.user_id = u.id
+       WHERE c.event_id = ?
+       ORDER BY c.created_at DESC`,
+      [eventId]
+    );
+
+    res.json(comments);
+  } catch (err) {
+    console.error("❌ Failed to fetch comments:", err);
+    res.status(500).json({ error: "Server error fetching comments" });
+  }
+});
+
+app.put("/api/event-comment/:commentId", async (req, res) => {
+  const { commentId } = req.params;
+  const { userId, comment } = req.body;
+
+  if (!userId || !comment || comment.trim() === "") {
+    return res.status(400).json({ error: "Invalid data for update" });
+  }
+
+  try {
+    const [result] = await db.query(
+      "UPDATE event_comments SET comment = ? WHERE id = ? AND user_id = ?",
+      [comment, commentId, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ error: "Comment not found or unauthorized" });
+    }
+
+    res.json({ message: "Comment updated" });
+  } catch (err) {
+    console.error("❌ Failed to update comment:", err);
+    res.status(500).json({ error: "Error updating comment" });
+  }
+});
+
+app.delete("/api/event-comment/:commentId", async (req, res) => {
+  const { commentId } = req.params;
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: "Missing user ID" });
+  }
+
+  try {
+    const [result] = await db.query(
+      "DELETE FROM event_comments WHERE id = ? AND user_id = ?",
+      [commentId, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ error: "Comment not found or unauthorized" });
+    }
+
+    res.json({ message: "Comment deleted" });
+  } catch (err) {
+    console.error("❌ Failed to delete comment:", err);
+    res.status(500).json({ error: "Error deleting comment" });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`✅ Backend server running at http://localhost:${PORT}`);
 });
