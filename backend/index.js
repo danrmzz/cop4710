@@ -289,7 +289,6 @@ app.post("/api/create-event", async (req, res) => {
   const {
     name,
     description,
-    category,
     visibility,
     event_date,
     event_time,
@@ -300,21 +299,19 @@ app.post("/api/create-event", async (req, res) => {
     contact_phone,
     rso_id,
     created_by,
-    university_id
+    university_id,
   } = req.body;
 
+  // Validate required fields (no more 'category')
   if (
     !name ||
-    !category ||
     !visibility ||
     !event_date ||
     !event_time ||
     !location_name ||
     !contact_email ||
     !contact_phone ||
-    !rso_id ||
-    !created_by ||
-    !university_id
+    !created_by
   ) {
     return res.status(400).json({ error: "Missing required fields" });
   }
@@ -322,16 +319,15 @@ app.post("/api/create-event", async (req, res) => {
   try {
     const [result] = await db.query(
       `INSERT INTO events (
-        name, description, category, visibility,
-        event_date, event_time, location_name,
-        latitude, longitude, contact_email, contact_phone,
-        rso_id, created_by, university_id, approved
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      name, description, visibility,
+      event_date, event_time, location_name,
+      latitude, longitude, contact_email, contact_phone,
+      rso_id, created_by, university_id, approved
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name,
         description || null,
-        category,
         visibility,
         event_date,
         event_time,
@@ -340,21 +336,21 @@ app.post("/api/create-event", async (req, res) => {
         longitude || null,
         contact_email,
         contact_phone,
-        rso_id,
+        rso_id || null,
         created_by,
-        university_id,
-        true // Approved by default
+        university_id || null,
+        true,
       ]
     );
 
-    res.status(201).json({ message: "Event created", eventId: result.insertId });
+    res
+      .status(201)
+      .json({ message: "Event created", eventId: result.insertId });
   } catch (err) {
     console.error("❌ Failed to insert event:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
-
-
 
 app.listen(PORT, () => {
   console.log(`✅ Backend server running at http://localhost:${PORT}`);

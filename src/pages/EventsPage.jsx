@@ -17,11 +17,12 @@ export default function EventsPage() {
   const [eventForm, setEventForm] = useState({
     name: "",
     description: "",
-    category: "",
     date: "",
     time: "",
     location: "",
+    contact_email: "",
     contact_phone: "",
+    visibility: "", // NEW
   });
 
   const [rsoForm, setRsoForm] = useState({
@@ -163,25 +164,30 @@ export default function EventsPage() {
   const handleCreateEvent = async (e) => {
     e.preventDefault();
 
+    const isRSO = eventForm.visibility === "rso";
+    const isPrivate = eventForm.visibility === "private";
+
     const rso = rsos.find((r) => r.admin_id === user.id);
-    if (!rso) return alert("❌ No RSO found for this admin");
+
+    if (isRSO && !rso) {
+      return alert("❌ No RSO found for this admin");
+    }
 
     const payload = {
       name: eventForm.name,
       description: eventForm.description,
-      category: eventForm.category,
-      visibility: "rso",
+      visibility: eventForm.visibility,
       event_date: eventForm.date,
       event_time: convertTo24Hour(eventForm.time),
       location_name: eventForm.location,
-      latitude: null, // optional
-      longitude: null, // optional
-      contact_email: user.email,
+      latitude: null,
+      longitude: null,
+      contact_email: eventForm.contact_email,
       contact_phone: eventForm.contact_phone,
-      rso_id: rso.id,
+      rso_id: isRSO ? rso.id : null,
       created_by: user.id,
-      university_id: user.university_id,
-      approved: true, // or false depending on your logic
+      university_id: isPrivate || isRSO ? user.university_id : null,
+      approved: true,
     };
 
     console.log("📦 Payload:", payload);
@@ -305,7 +311,7 @@ export default function EventsPage() {
               onClick={() => setShowCreateEventModal(true)}
               className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 cursor-pointer"
             >
-              Create RSO Event
+              Create Event
             </button>
           )}
         </div>
@@ -409,7 +415,7 @@ export default function EventsPage() {
       {showCreateEventModal && (
         <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow w-[28rem] max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold mb-4">Create RSO Event</h2>
+            <h2 className="text-xl font-semibold mb-4">Create Event</h2>
 
             <form onSubmit={handleCreateEvent} className="space-y-3">
               <input
@@ -437,21 +443,39 @@ export default function EventsPage() {
 
               <select
                 className="w-full p-2 border rounded"
-                value={eventForm.category}
+                value={eventForm.visibility}
                 onChange={(e) =>
                   setEventForm((prev) => ({
                     ...prev,
-                    category: e.target.value,
+                    visibility: e.target.value,
                   }))
                 }
                 required
               >
-                <option value="">Select Category</option>
-                <option value="social">Social</option>
-                <option value="fundraising">Fundraising</option>
-                <option value="tech talk">Tech Talk</option>
-                <option value="other">Other</option>
+                <option value="">Select Type</option>
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+                <option value="rso">RSO</option>
               </select>
+
+              {eventForm.visibility === "private" && (
+                <input
+                  className="w-full p-2 border rounded bg-gray-100"
+                  value={universityName}
+                  disabled
+                />
+              )}
+
+              {eventForm.visibility === "rso" && (
+                <input
+                  className="w-full p-2 border rounded bg-gray-100"
+                  value={
+                    rsos.find((rso) => rso.admin_id === user.id)?.name ||
+                    "No RSO found"
+                  }
+                  disabled
+                />
+              )}
 
               <input
                 className="w-full p-2 border rounded"
@@ -511,9 +535,17 @@ export default function EventsPage() {
               />
 
               <input
-                className="w-full p-2 border rounded bg-gray-100"
-                value={user.email}
-                disabled
+                className="w-full p-2 border rounded"
+                type="email"
+                placeholder="Contact Email"
+                value={eventForm.contact_email || ""}
+                onChange={(e) =>
+                  setEventForm((prev) => ({
+                    ...prev,
+                    contact_email: e.target.value,
+                  }))
+                }
+                required
               />
 
               <button
