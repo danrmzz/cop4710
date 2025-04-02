@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import '../App.css';
-
+import "../App.css";
 
 export default function EventsPage() {
   const [events, setEvents] = useState([]);
@@ -12,6 +11,32 @@ export default function EventsPage() {
   const [availableRsos, setAvailableRsos] = useState([]);
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const [showCreateEventModal, setShowCreateEventModal] = useState(false);
+  const [eventForm, setEventForm] = useState({
+    name: "",
+    description: "",
+    category: "",
+    date: "",
+    time: "",
+    location: "",
+    contact_phone: "",
+  });
+
+  const [rsoForm, setRsoForm] = useState({
+    name: "",
+    description: "",
+    members: ["", "", "", ""],
+  });
+
+  const timeOptions = Array.from({ length: 24 }, (_, i) => {
+    const hour = i % 12 === 0 ? 12 : i % 12;
+    const period = i < 12 ? "AM" : "PM";
+    return `${hour}:00 ${period}`;
+  });
+
+  const getEmailDomain = (email) => email.split("@")[1] || "";
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
@@ -88,6 +113,111 @@ export default function EventsPage() {
     }
   };
 
+  const handleCreateRso = async (e) => {
+    e.preventDefault();
+
+    const emails = [user.email, ...rsoForm.members];
+    const domains = emails.map(getEmailDomain);
+    const allSameDomain = domains.every((d) => d === domains[0]);
+
+    if (!allSameDomain) {
+      return alert("❌ All emails must share the same domain.");
+    }
+
+    try {
+      const res = await fetch("http://localhost:5000/api/create-rso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: rsoForm.name,
+          description: rsoForm.description,
+          university_id: user.university_id,
+          admin_email: user.email,
+          members: emails,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(`❌ ${data.error}`);
+      } else {
+        alert("🎉 RSO created successfully!");
+        localStorage.setItem(
+          "user",
+          JSON.stringify({ ...user, role: "admin" })
+        );
+        setUser((prev) => ({ ...prev, role: "admin" }));
+
+        setShowCreateModal(false);
+        setRsoForm({ name: "", description: "", members: ["", "", "", ""] });
+        fetchRsos(user.id);
+        fetchEvents(user.id);
+      }
+    } catch (err) {
+      console.error("Create RSO failed:", err);
+      alert("❌ Something went wrong.");
+    }
+  };
+
+  const handleCreateEvent = async (e) => {
+    e.preventDefault();
+
+    const rso = rsos.find((r) => r.admin_id === user.id);
+    if (!rso) return alert("❌ No RSO found for this admin");
+
+    const payload = {
+      name: eventForm.name,
+      description: eventForm.description,
+      category: eventForm.category,
+      visibility: "rso",
+      event_date: eventForm.date,
+      event_time: convertTo24Hour(eventForm.time),
+      location_name: eventForm.location,
+      latitude: null, // optional
+      longitude: null, // optional
+      contact_email: user.email,
+      contact_phone: eventForm.contact_phone,
+      rso_id: rso.id,
+      created_by: user.id,
+      university_id: user.university_id,
+      approved: true, // or false depending on your logic
+    };
+
+    console.log("📦 Payload:", payload);
+
+    try {
+      const res = await fetch("http://localhost:5000/api/create-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Failed to create event");
+
+      alert("🎉 Event created!");
+      setShowCreateEventModal(false);
+      fetchEvents(user.id);
+    } catch (err) {
+      console.error(err);
+      alert("❌ Could not create event");
+    }
+  };
+
+  const convertTo24Hour = (timeStr) => {
+    const [time, modifier] = timeStr.split(" ");
+    let [hours, minutes] = time.split(":");
+
+    if (modifier === "PM" && hours !== "12") {
+      hours = parseInt(hours) + 12;
+    }
+    if (modifier === "AM" && hours === "12") {
+      hours = "00";
+    }
+
+    return `${hours.toString().padStart(2, "0")}:${minutes}:00`;
+  };
+
   const handleLogout = () => {
     const confirmed = window.confirm("Are you sure you want to log out?");
     if (confirmed) {
@@ -119,7 +249,9 @@ export default function EventsPage() {
             <span className="ml-1 text-blue-800">
               {rsos.map((rso, index) => (
                 <span key={rso.id}>
-                  {rso.name}
+                  <span className={rso.admin_id === user.id ? "font-bold" : ""}>
+                    {rso.name}
+                  </span>
                   {index < rsos.length - 1 ? ", " : ""}
                 </span>
               ))}
@@ -143,7 +275,7 @@ export default function EventsPage() {
       <h1 className="text-3xl font-bold mb-4">Events Feed</h1>
 
       {/* Student-only buttons */}
-      {user.role === "student" && (
+      {(user.role === "student" || user.role === "admin") && (
         <div className="flex gap-4 mb-6 flex-wrap">
           <button
             onClick={() => setShowJoinModal(true)}
@@ -151,15 +283,31 @@ export default function EventsPage() {
           >
             Join Existing RSO
           </button>
+
           <button
             onClick={() => setShowLeaveModal(true)}
             className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 cursor-pointer"
           >
             Leave an RSO
           </button>
-          <button className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer">
-            Create New RSO
-          </button>
+
+          {user.role === "student" && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer"
+            >
+              Create New RSO
+            </button>
+          )}
+
+          {user.role === "admin" && (
+            <button
+              onClick={() => setShowCreateEventModal(true)}
+              className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 cursor-pointer"
+            >
+              Create RSO Event
+            </button>
+          )}
         </div>
       )}
 
@@ -225,7 +373,7 @@ export default function EventsPage() {
 
       {/* Leave RSO Modal */}
       {showLeaveModal && (
-        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex justify-center items-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow w-96">
             <h2 className="text-xl font-semibold mb-4">Leave an RSO</h2>
             {rsos.length === 0 ? (
@@ -253,6 +401,205 @@ export default function EventsPage() {
               className="mt-4 w-full bg-gray-400 text-white py-2 rounded hover:bg-gray-500 cursor-pointer"
             >
               Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showCreateEventModal && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded shadow w-[28rem] max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4">Create RSO Event</h2>
+
+            <form onSubmit={handleCreateEvent} className="space-y-3">
+              <input
+                className="w-full p-2 border rounded"
+                placeholder="Event Name"
+                value={eventForm.name}
+                onChange={(e) =>
+                  setEventForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+                required
+              />
+
+              <textarea
+                className="w-full p-2 border rounded"
+                placeholder="Event Description"
+                value={eventForm.description}
+                onChange={(e) =>
+                  setEventForm((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                required
+              />
+
+              <select
+                className="w-full p-2 border rounded"
+                value={eventForm.category}
+                onChange={(e) =>
+                  setEventForm((prev) => ({
+                    ...prev,
+                    category: e.target.value,
+                  }))
+                }
+                required
+              >
+                <option value="">Select Category</option>
+                <option value="social">Social</option>
+                <option value="fundraising">Fundraising</option>
+                <option value="tech talk">Tech Talk</option>
+                <option value="other">Other</option>
+              </select>
+
+              <input
+                className="w-full p-2 border rounded"
+                type="date"
+                value={eventForm.date}
+                onChange={(e) =>
+                  setEventForm((prev) => ({ ...prev, date: e.target.value }))
+                }
+                required
+              />
+
+              <select
+                className="w-full p-2 border rounded"
+                value={eventForm.time}
+                onChange={(e) =>
+                  setEventForm((prev) => ({ ...prev, time: e.target.value }))
+                }
+                required
+              >
+                <option value="">Select Time</option>
+                {Array.from({ length: 24 }, (_, i) => {
+                  const hour = i % 12 === 0 ? 12 : i % 12;
+                  const ampm = i < 12 ? "AM" : "PM";
+                  const formatted = `${hour}:00 ${ampm}`;
+                  return (
+                    <option key={i} value={formatted}>
+                      {formatted}
+                    </option>
+                  );
+                })}
+              </select>
+
+              <input
+                className="w-full p-2 border rounded"
+                placeholder="Location Name"
+                value={eventForm.location}
+                onChange={(e) =>
+                  setEventForm((prev) => ({
+                    ...prev,
+                    location: e.target.value,
+                  }))
+                }
+                required
+              />
+
+              <input
+                className="w-full p-2 border rounded"
+                placeholder="Contact Phone"
+                value={eventForm.contact_phone}
+                onChange={(e) =>
+                  setEventForm((prev) => ({
+                    ...prev,
+                    contact_phone: e.target.value,
+                  }))
+                }
+                required
+              />
+
+              <input
+                className="w-full p-2 border rounded bg-gray-100"
+                value={user.email}
+                disabled
+              />
+
+              <button
+                type="submit"
+                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 cursor-pointer"
+              >
+                Create Event
+              </button>
+            </form>
+
+            <button
+              onClick={() => setShowCreateEventModal(false)}
+              className="mt-3 w-full bg-gray-400 text-white py-2 rounded hover:bg-gray-500 cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create RSO Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded shadow w-[28rem] max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4">Create New RSO</h2>
+
+            <form onSubmit={handleCreateRso} className="space-y-3">
+              <input
+                className="w-full p-2 border rounded"
+                placeholder="RSO Name"
+                value={rsoForm.name}
+                onChange={(e) =>
+                  setRsoForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+                required
+              />
+              <textarea
+                className="w-full p-2 border rounded"
+                placeholder="RSO Description"
+                value={rsoForm.description}
+                onChange={(e) =>
+                  setRsoForm((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                required
+              />
+              <input
+                className="w-full p-2 border rounded bg-gray-100"
+                value={universityName}
+                disabled
+              />
+              <input
+                className="w-full p-2 border rounded bg-gray-100"
+                value={user.email}
+                disabled
+              />
+              {rsoForm.members.map((member, idx) => (
+                <input
+                  key={idx}
+                  className="w-full p-2 border rounded"
+                  type="email"
+                  placeholder={`Member ${idx + 2} Email`}
+                  value={member}
+                  onChange={(e) => {
+                    const updated = [...rsoForm.members];
+                    updated[idx] = e.target.value;
+                    setRsoForm((prev) => ({ ...prev, members: updated }));
+                  }}
+                  required
+                />
+              ))}
+              <button
+                type="submit"
+                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 cursor-pointer"
+              >
+                Create RSO
+              </button>
+            </form>
+
+            <button
+              onClick={() => setShowCreateModal(false)}
+              className="mt-3 w-full bg-gray-400 text-white py-2 rounded hover:bg-gray-500 cursor-pointer"
+            >
+              Cancel
             </button>
           </div>
         </div>
