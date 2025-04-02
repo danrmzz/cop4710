@@ -31,18 +31,35 @@ export default function LandingPage() {
   const handleSignup = async (e) => {
     e.preventDefault();
     try {
+      // First: create user
       const res = await fetch("http://localhost:5000/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(signupData),
       });
-      const data = await res.json();
 
-      alert("✅ Sign-up successful!");
+      if (!res.ok) throw new Error("Signup failed");
+
+      // Then: immediately log in
+      const loginRes = await fetch("http://localhost:5000/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: signupData.email,
+          password: signupData.password,
+        }),
+      });
+
+      const userData = await loginRes.json();
+
+      if (!loginRes.ok) throw new Error(userData.error || "Login failed");
+
+      localStorage.setItem("user", JSON.stringify(userData.user));
+      alert("✅ Sign-up successful! You're now logged in.");
       navigate("/events");
     } catch (err) {
       console.error(err);
-      alert("Sign-up failed.");
+      alert("❌ Signup/Login failed.");
     }
   };
 
@@ -58,6 +75,8 @@ export default function LandingPage() {
 
       if (res.ok) {
         alert("✅ Logged in!");
+        localStorage.setItem("user", JSON.stringify(data.user));
+        // Save session
         navigate("/events");
       } else {
         alert(`❌ ${data.error}`);
@@ -150,7 +169,10 @@ export default function LandingPage() {
                 className="w-full p-2 border rounded"
                 value={signupData.university_id}
                 onChange={(e) =>
-                  setSignupData({ ...signupData, university_id: e.target.value })
+                  setSignupData({
+                    ...signupData,
+                    university_id: e.target.value,
+                  })
                 }
                 required
               >
