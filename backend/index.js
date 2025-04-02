@@ -326,10 +326,8 @@ app.post("/api/create-event", async (req, res) => {
     contact_phone,
     rso_id,
     created_by,
-    university_id,
   } = req.body;
 
-  // Validate required fields (no more 'category')
   if (
     !name ||
     !visibility ||
@@ -344,14 +342,28 @@ app.post("/api/create-event", async (req, res) => {
   }
 
   try {
+    // 🔍 Fetch university_id from the user's account
+    const [[user]] = await db.query(
+      "SELECT university_id FROM users WHERE id = ?",
+      [created_by]
+    );
+
+    if (!user || !user.university_id) {
+      return res
+        .status(400)
+        .json({ error: "Could not determine user's university" });
+    }
+
+    const university_id = user.university_id;
+    const approved = visibility === "public" ? false : true;
+
     const [result] = await db.query(
       `INSERT INTO events (
-      name, description, visibility,
-      event_date, event_time, location_name,
-      latitude, longitude, contact_email, contact_phone,
-      rso_id, created_by, university_id, approved
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        name, description, visibility,
+        event_date, event_time, location_name,
+        latitude, longitude, contact_email, contact_phone,
+        rso_id, created_by, university_id, approved
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name,
         description || null,
@@ -365,17 +377,18 @@ app.post("/api/create-event", async (req, res) => {
         contact_phone,
         rso_id || null,
         created_by,
-        university_id || null,
-        true,
+        university_id,
+        approved,
       ]
     );
 
-    res
-      .status(201)
-      .json({ message: "Event created", eventId: result.insertId });
+    res.status(201).json({
+      message: "Event created successfully",
+      eventId: result.insertId,
+    });
   } catch (err) {
-    console.error("❌ Failed to insert event:", err);
-    res.status(500).json({ error: "Server error" });
+    console.error("❌ Failed to create event:", err);
+    res.status(500).json({ error: "Server error creating event" });
   }
 });
 
@@ -452,13 +465,11 @@ app.post("/api/superadmin-signup", async (req, res) => {
       ]
     );
 
-    res
-      .status(201)
-      .json({
-        message: "Super admin and university created",
-        userId,
-        universityId: uniResult.insertId,
-      });
+    res.status(201).json({
+      message: "Super admin and university created",
+      userId,
+      universityId: uniResult.insertId,
+    });
   } catch (err) {
     console.error("❌ Super Admin signup failed:", err);
     res.status(500).json({ error: "Server error during signup" });

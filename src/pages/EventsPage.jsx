@@ -281,6 +281,8 @@ export default function EventsPage() {
       return alert("❌ No RSO found for this admin");
     }
 
+    const approved = eventForm.visibility === "public" ? false : true;
+
     const payload = {
       name: eventForm.name,
       description: eventForm.description,
@@ -295,7 +297,7 @@ export default function EventsPage() {
       rso_id: isRSO ? rso.id : null,
       created_by: user.id,
       university_id: isPrivate || isRSO ? user.university_id : null,
-      approved: true,
+      approved,
     };
 
     console.log("📦 Payload:", payload);
@@ -309,7 +311,12 @@ export default function EventsPage() {
 
       if (!res.ok) throw new Error("Failed to create event");
 
-      alert("🎉 Event created!");
+      alert(
+        approved
+          ? "🎉 Event created!"
+          : "🕒 Event submitted for approval by super admin."
+      );
+
       setShowCreateEventModal(false);
       fetchEvents(user.id);
     } catch (err) {
