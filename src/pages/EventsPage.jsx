@@ -358,8 +358,22 @@ export default function EventsPage() {
 
             <p className="text-gray-800 mb-2">{event.description}</p>
 
-            <p className="text-sm text-gray-700">
-              📅 {event.event_date} @ 🕒 {event.event_time}
+            <p className="text-sm text-indigo-700 font-medium">
+              📅{" "}
+              {new Date(event.event_date).toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}{" "}
+              @ 🕒{" "}
+              {new Date(`1970-01-01T${event.event_time}Z`).toLocaleTimeString(
+                [],
+                {
+                  hour: "numeric",
+                  minute: "2-digit",
+                  hour12: true,
+                }
+              )}
             </p>
 
             <p className="text-sm text-gray-700 italic">
