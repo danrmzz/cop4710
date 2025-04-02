@@ -192,14 +192,39 @@ app.post("/api/leave-rso", async (req, res) => {
   const { userId, rsoId } = req.body;
 
   try {
+    // Check if the user is the admin of the RSO
+    const [[rso]] = await db.query("SELECT * FROM rsos WHERE id = ?", [rsoId]);
+
+    if (!rso) return res.status(404).json({ error: "RSO not found" });
+
+    if (rso.admin_id === userId) {
+      // 1. Delete all events for this RSO
+      await db.query("DELETE FROM events WHERE rso_id = ?", [rsoId]);
+
+      // 2. Remove all members from rso_members
+      await db.query("DELETE FROM rso_members WHERE rso_id = ?", [rsoId]);
+
+      // 3. Delete the RSO itself
+      await db.query("DELETE FROM rsos WHERE id = ?", [rsoId]);
+
+      // 4. Demote the user back to student
+      await db.query("UPDATE users SET role = 'student' WHERE id = ?", [
+        userId,
+      ]);
+
+      return res.json({ message: "RSO disbanded and user demoted" });
+    }
+
+    // Regular member leaving
     await db.query("DELETE FROM rso_members WHERE user_id = ? AND rso_id = ?", [
       userId,
       rsoId,
     ]);
+
     res.json({ message: "Left RSO successfully" });
   } catch (err) {
-    console.error("Failed to leave RSO:", err);
-    res.status(500).json({ error: "Error leaving RSO" });
+    console.error("Failed to leave/disband RSO:", err);
+    res.status(500).json({ error: "Error processing request" });
   }
 });
 
@@ -349,6 +374,40 @@ app.post("/api/create-event", async (req, res) => {
   } catch (err) {
     console.error("❌ Failed to insert event:", err);
     res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.post("/api/disband-rso", async (req, res) => {
+  const { userId, rsoId } = req.body;
+
+  try {
+    // Verify admin
+    const [[rso]] = await db.query(
+      "SELECT * FROM rsos WHERE id = ? AND admin_id = ?",
+      [rsoId, userId]
+    );
+    if (!rso) {
+      return res
+        .status(403)
+        .json({ error: "Not authorized to disband this RSO." });
+    }
+
+    // Remove all members
+    await db.query("DELETE FROM rso_members WHERE rso_id = ?", [rsoId]);
+
+    // Remove all events tied to this RSO
+    await db.query("DELETE FROM events WHERE rso_id = ?", [rsoId]);
+
+    // Delete the RSO
+    await db.query("DELETE FROM rsos WHERE id = ?", [rsoId]);
+
+    // Demote user
+    await db.query("UPDATE users SET role = 'student' WHERE id = ?", [userId]);
+
+    res.json({ message: "✅ RSO disbanded and user demoted." });
+  } catch (err) {
+    console.error("❌ Failed to disband RSO:", err);
+    res.status(500).json({ error: "Server error disbanding RSO" });
   }
 });
 

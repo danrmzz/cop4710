@@ -97,6 +97,16 @@ export default function EventsPage() {
   };
 
   const handleLeaveRso = async (rsoId) => {
+    const rso = rsos.find((r) => r.id === rsoId);
+
+    // Only show confirmation if the user is the admin (disbanding)
+    if (rso && rso.admin_id === user.id) {
+      const confirm = window.confirm(
+        "⚠️ You are the admin of this RSO. Disbanding will:\n\n• Delete this RSO\n• Remove all its members\n• Delete all events\n\nAre you sure?"
+      );
+      if (!confirm) return;
+    }
+
     try {
       await fetch("http://localhost:5000/api/leave-rso", {
         method: "POST",
@@ -104,13 +114,23 @@ export default function EventsPage() {
         body: JSON.stringify({ userId: user.id, rsoId }),
       });
 
-      alert("🏃 Left the RSO.");
+      if (rso && rso.admin_id === user.id) {
+        alert("☠️ RSO disbanded. You are now a student.");
+        localStorage.setItem(
+          "user",
+          JSON.stringify({ ...user, role: "student" })
+        );
+        setUser((prev) => ({ ...prev, role: "student" }));
+      } else {
+        alert("🏃 Successfully left the RSO.");
+      }
+
       setShowLeaveModal(false);
       fetchRsos(user.id);
       fetchEvents(user.id);
     } catch (err) {
-      console.error("Failed to leave RSO", err);
-      alert("❌ Could not leave RSO");
+      console.error("Failed to leave/disband RSO", err);
+      alert("❌ Could not complete action");
     }
   };
 
@@ -401,9 +421,11 @@ export default function EventsPage() {
                     <span>{rso.name}</span>
                     <button
                       onClick={() => handleLeaveRso(rso.id)}
-                      className="text-sm bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 cursor-pointer"
+                      className={`text-sm ${
+                        rso.admin_id === user.id ? "bg-red-700" : "bg-red-600"
+                      } text-white px-2 py-1 rounded hover:bg-red-800 cursor-pointer`}
                     >
-                      Leave
+                      {rso.admin_id === user.id ? "Disband" : "Leave"}
                     </button>
                   </li>
                 ))}
