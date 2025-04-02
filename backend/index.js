@@ -443,7 +443,7 @@ app.post("/api/superadmin-signup", async (req, res) => {
   }
 
   try {
-    // 1. Create the user
+    // 1. Create the super admin user
     const [userResult] = await db.query(
       "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'super_admin')",
       [name, email, password]
@@ -465,10 +465,18 @@ app.post("/api/superadmin-signup", async (req, res) => {
       ]
     );
 
+    const universityId = uniResult.insertId;
+
+    // ✅ 3. Update the user’s university_id
+    await db.query("UPDATE users SET university_id = ? WHERE id = ?", [
+      universityId,
+      userId,
+    ]);
+
     res.status(201).json({
       message: "Super admin and university created",
       userId,
-      universityId: uniResult.insertId,
+      universityId,
     });
   } catch (err) {
     console.error("❌ Super Admin signup failed:", err);
