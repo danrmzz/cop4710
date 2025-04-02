@@ -146,6 +146,52 @@ app.get("/api/user-university/:userId", async (req, res) => {
 });
 
 
+app.get("/api/available-rsos/:userId", async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    const [[user]] = await db.query("SELECT university_id FROM users WHERE id = ?", [userId]);
+
+    const [rsos] = await db.query(`
+      SELECT r.id, r.name
+      FROM rsos r
+      WHERE r.university_id = ?
+        AND r.id NOT IN (
+          SELECT rso_id FROM rso_members WHERE user_id = ?
+        )
+    `, [user.university_id, userId]);
+
+    res.json(rsos);
+  } catch (err) {
+    console.error("❌ Failed to get RSOs:", err);
+    res.status(500).json({ error: "Error getting RSOs" });
+  }
+});
+
+
+app.post("/api/join-rso", async (req, res) => {
+  const { userId, rsoId } = req.body;
+
+  try {
+    await db.query("INSERT INTO rso_members (user_id, rso_id) VALUES (?, ?)", [userId, rsoId]);
+    res.json({ message: "Joined RSO successfully" });
+  } catch (err) {
+    console.error("❌ Failed to join RSO:", err);
+    res.status(500).json({ error: "Error joining RSO" });
+  }
+});
+
+app.post("/api/leave-rso", async (req, res) => {
+  const { userId, rsoId } = req.body;
+
+  try {
+    await db.query("DELETE FROM rso_members WHERE user_id = ? AND rso_id = ?", [userId, rsoId]);
+    res.json({ message: "Left RSO successfully" });
+  } catch (err) {
+    console.error("Failed to leave RSO:", err);
+    res.status(500).json({ error: "Error leaving RSO" });
+  }
+});
 
 
 
