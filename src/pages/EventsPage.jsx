@@ -10,6 +10,94 @@ export default function EventsPage() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [availableRsos, setAvailableRsos] = useState([]);
 
+  const [showRequestsModal, setShowRequestsModal] = useState(false);
+  const [pendingEvents, setPendingEvents] = useState([]);
+
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const fetchPendingEvents = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/unapproved-events");
+      const data = await res.json();
+      setPendingEvents(data);
+      setPendingCount(data.length); // Update count
+    } catch (err) {
+      console.error("Error fetching unapproved events", err);
+    }
+  };
+
+  useEffect(() => {
+    let interval;
+
+    if (user.role === "super_admin") {
+      fetchPendingEvents(); // initial fetch
+
+      interval = setInterval(() => {
+        fetchPendingEvents(); // auto-refresh every 10s
+      }, 10000); // 10 seconds
+    }
+
+    return () => {
+      if (interval) clearInterval(interval); // cleanup on unmount
+    };
+  }, [user.role]);
+
+  const handleApproveEvent = async (eventId) => {
+    try {
+      await fetch("http://localhost:5000/api/approve-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+
+      alert("✅ Event approved!");
+      fetchPendingEvents(); // refresh list
+      fetchEvents(user.id); // optional: refresh main feed
+    } catch (err) {
+      console.error("Failed to approve event", err);
+      alert("❌ Could not approve event");
+    }
+  };
+
+  const handleDeleteApprovedEvent = async (eventId) => {
+    const confirm = window.confirm(
+      "🗑️ Are you sure you want to delete this event?"
+    );
+    if (!confirm) return;
+
+    try {
+      await fetch("http://localhost:5000/api/delete-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+
+      alert("✅ Event deleted.");
+      fetchEvents(user.id);
+      fetchPendingEvents(); // optional refresh if needed
+    } catch (err) {
+      console.error("Failed to delete approved event", err);
+      alert("❌ Could not delete event");
+    }
+  };
+
+  const handleDisapproveEvent = async (eventId) => {
+    try {
+      await fetch("http://localhost:5000/api/delete-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+
+      alert("🗑️ Event disapproved and deleted.");
+      fetchPendingEvents();
+      fetchEvents(user.id); // refresh main feed if needed
+    } catch (err) {
+      console.error("Failed to delete event", err);
+      alert("❌ Could not disapprove event");
+    }
+  };
+
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -261,7 +349,14 @@ export default function EventsPage() {
           Name: <span className="font-semibold">{user.name}</span>
         </div>
         <div className="bg-white px-3 py-1 rounded shadow text-sm font-medium">
-          Role: <span className="capitalize">{user.role}</span>
+          Role:{" "}
+          <span className="capitalize">
+            {user.role
+              ? user.role
+                  .replace("_", " ")
+                  .replace(/\b\w/g, (c) => c.toUpperCase())
+              : ""}
+          </span>
         </div>
         <div className="bg-white px-3 py-1 rounded shadow text-sm font-medium">
           University:{" "}
@@ -337,12 +432,34 @@ export default function EventsPage() {
         </div>
       )}
 
+      <div className="flex gap-4 mb-6 flex-wrap">
+        {user.role === "super_admin" && (
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowRequestsModal(true);
+                fetchPendingEvents();
+              }}
+              className="relative bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 cursor-pointer"
+            >
+              Public Event Requests
+              {/* Red notification bubble */}
+              {pendingCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center shadow">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Event cards */}
       <div className="grid gap-4">
         {events.map((event) => (
           <div
             key={event.id}
-            className="bg-white p-4 rounded shadow border-l-4 border-blue-600"
+            className="bg-white p-4 rounded shadow border-l-4 border-blue-600 relative"
           >
             <h2 className="text-xl font-bold text-gray-900 mb-1">
               {event.name}
@@ -365,7 +482,8 @@ export default function EventsPage() {
                 month: "long",
                 day: "numeric",
               })}{" "}
-              @ 🕒{" "}
+              <br />
+              🕒{" "}
               {new Date(`1970-01-01T${event.event_time}Z`).toLocaleTimeString(
                 [],
                 {
@@ -379,6 +497,14 @@ export default function EventsPage() {
             <p className="text-sm text-gray-700 italic">
               📍 {event.location_name}
             </p>
+            {user.role === "super_admin" && (
+              <button
+                onClick={() => handleDeleteApprovedEvent(event.id)}
+                className="absolute bottom-3 right-3 bg-red-600 text-white text-xs px-3 py-1 rounded hover:bg-red-700 cursor-pointer"
+              >
+                Delete
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -411,6 +537,58 @@ export default function EventsPage() {
             <button
               onClick={() => setShowJoinModal(false)}
               className="mt-4 w-full bg-red-500 text-white py-2 rounded hover:bg-red-600 cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showRequestsModal && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded shadow w-[30rem] max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4">
+              Pending Public Events
+            </h2>
+
+            {pendingEvents.length === 0 ? (
+              <p className="text-gray-500">
+                No unapproved public events found.
+              </p>
+            ) : (
+              <ul className="space-y-4">
+                {pendingEvents.map((event) => (
+                  <li
+                    key={event.id}
+                    className="border rounded p-3 flex flex-col gap-1 bg-gray-50"
+                  >
+                    <p className="font-medium text-lg">{event.name}</p>
+                    <p className="text-sm text-gray-600">{event.description}</p>
+                    <p className="text-sm">📍 {event.location_name}</p>
+                    <p className="text-sm">🏫 {event.university_name}</p>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => handleApproveEvent(event.id)}
+                        className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 cursor-pointer"
+                      >
+                        Approve
+                      </button>
+
+                      <button
+                        onClick={() => handleDisapproveEvent(event.id)}
+                        className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 cursor-pointer"
+                      >
+                        Disapprove
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <button
+              onClick={() => setShowRequestsModal(false)}
+              className="mt-4 w-full bg-gray-400 text-white py-2 rounded hover:bg-gray-500 cursor-pointer"
             >
               Close
             </button>

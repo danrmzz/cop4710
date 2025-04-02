@@ -82,9 +82,11 @@ app.get("/api/events", async (req, res) => {
       SELECT e.*, r.name AS rso_name
       FROM events e
       LEFT JOIN rsos r ON e.rso_id = r.id
-      WHERE e.visibility = 'public'
+      WHERE e.approved = 1 AND (
+        e.visibility = 'public'
         OR (e.visibility = 'private' AND e.university_id = ?)
         OR (e.visibility = 'rso' AND e.rso_id IN (?))
+      )
       `,
       [universityId, rsoIds.length ? rsoIds : [0]]
     );
@@ -408,6 +410,100 @@ app.post("/api/disband-rso", async (req, res) => {
   } catch (err) {
     console.error("❌ Failed to disband RSO:", err);
     res.status(500).json({ error: "Server error disbanding RSO" });
+  }
+});
+
+app.post("/api/superadmin-signup", async (req, res) => {
+  const {
+    name,
+    email,
+    password,
+    university_name,
+    description,
+    location,
+    student_count,
+    pictures,
+  } = req.body;
+
+  if (!name || !email || !password || !university_name) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    // 1. Create the user
+    const [userResult] = await db.query(
+      "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'super_admin')",
+      [name, email, password]
+    );
+
+    const userId = userResult.insertId;
+
+    // 2. Create the university
+    const [uniResult] = await db.query(
+      `INSERT INTO universities (name, description, location, student_count, pictures, created_by)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        university_name,
+        description || null,
+        location || null,
+        student_count || null,
+        pictures || null,
+        userId,
+      ]
+    );
+
+    res
+      .status(201)
+      .json({
+        message: "Super admin and university created",
+        userId,
+        universityId: uniResult.insertId,
+      });
+  } catch (err) {
+    console.error("❌ Super Admin signup failed:", err);
+    res.status(500).json({ error: "Server error during signup" });
+  }
+});
+
+app.get("/api/unapproved-events", async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT e.*, u.name as university_name
+      FROM events e
+      LEFT JOIN universities u ON e.university_id = u.id
+      WHERE e.visibility = 'public' AND e.approved = false
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error("❌ Failed to fetch unapproved events:", err);
+    res.status(500).json({ error: "Error fetching unapproved events" });
+  }
+});
+
+app.post("/api/approve-event", async (req, res) => {
+  const { eventId } = req.body;
+  try {
+    await db.query("UPDATE events SET approved = true WHERE id = ?", [eventId]);
+    res.json({ message: "Event approved successfully" });
+  } catch (err) {
+    console.error("❌ Failed to approve event:", err);
+    res.status(500).json({ error: "Failed to approve event" });
+  }
+});
+
+app.post("/api/delete-event", async (req, res) => {
+  const { eventId } = req.body;
+
+  if (!eventId) {
+    return res.status(400).json({ error: "Missing eventId" });
+  }
+
+  try {
+    await db.query("DELETE FROM events WHERE id = ?", [eventId]);
+    res.json({ message: "Event deleted" });
+  } catch (err) {
+    console.error("Failed to delete event:", err);
+    res.status(500).json({ error: "Server error deleting event" });
   }
 });
 
