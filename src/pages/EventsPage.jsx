@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "../App.css";
+import MapPicker from "../components/MapPicker"; // adjust path if needed
 
 export default function EventsPage() {
   const [events, setEvents] = useState([]);
@@ -108,6 +109,8 @@ export default function EventsPage() {
     date: "",
     time: "",
     location: "",
+    latitude: null,
+    longitude: null,
     contact_email: "",
     contact_phone: "",
     visibility: "", // NEW
@@ -290,8 +293,8 @@ export default function EventsPage() {
       event_date: eventForm.date,
       event_time: convertTo24Hour(eventForm.time),
       location_name: eventForm.location,
-      latitude: null,
-      longitude: null,
+      latitude: eventForm.latitude,
+      longitude: eventForm.longitude,
       contact_email: eventForm.contact_email,
       contact_phone: eventForm.contact_phone,
       rso_id: isRSO ? rso.id : null,
@@ -318,6 +321,18 @@ export default function EventsPage() {
       );
 
       setShowCreateEventModal(false);
+      setEventForm({
+        name: "",
+        description: "",
+        date: "",
+        time: "",
+        location: "",
+        latitude: null,
+        longitude: null,
+        contact_email: "",
+        contact_phone: "",
+        visibility: "",
+      });
       fetchEvents(user.id);
     } catch (err) {
       console.error(err);
@@ -736,9 +751,19 @@ export default function EventsPage() {
                 })}
               </select>
 
+              <MapPicker
+                setCoords={(coords) =>
+                  setEventForm((prev) => ({
+                    ...prev,
+                    latitude: coords.lat,
+                    longitude: coords.lng,
+                  }))
+                }
+              />
+
               <input
                 className="w-full p-2 border rounded"
-                placeholder="Location Name"
+                placeholder="Location"
                 value={eventForm.location}
                 onChange={(e) =>
                   setEventForm((prev) => ({
@@ -747,6 +772,14 @@ export default function EventsPage() {
                   }))
                 }
                 required
+              />
+
+              <input
+                className="w-full p-2 border rounded bg-gray-100"
+                value={`Lat: ${eventForm.latitude || ""}, Lng: ${
+                  eventForm.longitude || ""
+                }`}
+                readOnly
               />
 
               <input
