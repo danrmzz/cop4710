@@ -197,14 +197,7 @@ app.post("/api/join-rso", async (req, res) => {
       rsoId,
     ]);
 
-    // Update members count and check if we need to reactivate the RSO
-    await db.query(
-      `UPDATE rsos
-       SET members = members + 1,
-           is_active = CASE WHEN members + 1 >= 5 THEN 1 ELSE is_active END
-       WHERE id = ?`,
-      [rsoId]
-    );
+    
 
     res.json({ message: "🎉 Joined RSO successfully" });
   } catch (err) {
@@ -246,14 +239,7 @@ app.post("/api/leave-rso", async (req, res) => {
       rsoId,
     ]);
 
-    // Decrement member count and update active status
-    await db.query(
-      `UPDATE rsos
-   SET members = members - 1,
-       is_active = CASE WHEN members - 1 < 5 THEN 0 ELSE 1 END
-   WHERE id = ?`,
-      [rsoId]
-    );
+    
 
     res.json({ message: "Left RSO successfully" });
   } catch (err) {
