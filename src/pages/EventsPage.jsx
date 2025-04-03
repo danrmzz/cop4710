@@ -552,7 +552,7 @@ export default function EventsPage() {
               })}{" "}
               <br />
               🕒{" "}
-              {new Date(`1970-01-01T${event.event_time}Z`).toLocaleTimeString(
+              {new Date(`1970-01-01T${event.event_time}`).toLocaleTimeString(
                 [],
                 {
                   hour: "numeric",

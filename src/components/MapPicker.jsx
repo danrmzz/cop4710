@@ -13,7 +13,8 @@ import "leaflet-geosearch/dist/geosearch.css";
 // Fix Leaflet marker icon path
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon-2x.png",
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon-2x.png",
   iconUrl: "https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.3/dist/images/marker-shadow.png",
 });
@@ -23,6 +24,8 @@ function SearchControl({ setCoords }) {
   const map = useMap();
 
   useEffect(() => {
+    if (!map) return;
+
     const provider = new OpenStreetMapProvider();
 
     const searchControl = new GeoSearchControl({
@@ -38,17 +41,29 @@ function SearchControl({ setCoords }) {
 
     map.addControl(searchControl);
 
+    // Prevent Leaflet from hijacking keyboard focus
+    map.getContainer().tabIndex = "0"; // necessary if not already focusable
+    map.keyboard.disable(); // this is still good
+
     map.on("geosearch/showlocation", (result) => {
       const { label, location } = result;
       setCoords({
         lat: location.y,
         lng: location.x,
-        name: label, // optional, for location name
+        name: label,
       });
     });
 
-    return () => map.removeControl(searchControl);
-  }, [map, setCoords]);
+    // 🧠 Optional: Force input to keep focus
+    setTimeout(() => {
+      const input = document.querySelector(".leaflet-control-geosearch input");
+      if (input) input.focus();
+    }, 300);
+
+    return () => {
+      map.removeControl(searchControl);
+    };
+  }, []); // <-- empty dependency array!
 
   return null;
 }
