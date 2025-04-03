@@ -660,6 +660,14 @@ app.delete("/api/event-comment/:commentId", async (req, res) => {
   }
 });
 
+app.get("/api/university-rsos/:universityId", async (req, res) => {
+  const { universityId } = req.params;
+  const [rsos] = await db.query("SELECT * FROM rsos WHERE university_id = ?", [
+    universityId,
+  ]);
+  res.json(rsos);
+});
+
 app.listen(PORT, () => {
   console.log(`✅ Backend server running at http://localhost:${PORT}`);
 });

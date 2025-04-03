@@ -14,6 +14,15 @@ export default function EventsPage() {
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [pendingEvents, setPendingEvents] = useState([]);
 
+  const [allUniversityRsos, setAllUniversityRsos] = useState([]);
+
+  const fetchAllRsosAtUniversity = (universityId) => {
+    fetch(`http://localhost:5000/api/university-rsos/${universityId}`)
+      .then((res) => res.json())
+      .then((data) => setAllUniversityRsos(data))
+      .catch((err) => console.error("Failed to fetch university RSOs", err));
+  };
+
   const [pendingCount, setPendingCount] = useState(0);
 
   const [userRatings, setUserRatings] = useState({}); // { eventId: rating }
@@ -160,6 +169,7 @@ export default function EventsPage() {
     contact_email: "",
     contact_phone: "",
     visibility: "", // NEW
+    rso_id: "", // 🆕 Add this
   });
 
   const [rsoForm, setRsoForm] = useState({
@@ -183,6 +193,7 @@ export default function EventsPage() {
       fetchEvents(storedUser.id);
       fetchRsos(storedUser.id);
       fetchUniversity(storedUser.id);
+      fetchAllRsosAtUniversity(storedUser.university_id); // ✅
     }
   }, []);
 
@@ -324,10 +335,20 @@ export default function EventsPage() {
     const isRSO = eventForm.visibility === "rso";
     const isPrivate = eventForm.visibility === "private";
 
-    const rso = rsos.find((r) => r.admin_id === user.id);
+    if (isRSO) {
+      const selectedRSO = allUniversityRsos.find(
+        (r) => r.id === parseInt(eventForm.rso_id)
+      );
 
-    if (isRSO && !rso) {
-      return alert("❌ No RSO found for this admin");
+      if (!selectedRSO) {
+        return alert("❌ You must select a valid RSO.");
+      }
+
+      if (selectedRSO.admin_id !== user.id) {
+        return alert(
+          "❌ You can only create events for RSOs that you are the admin of."
+        );
+      }
     }
 
     const approved = eventForm.visibility === "public" ? false : true;
@@ -343,13 +364,11 @@ export default function EventsPage() {
       longitude: eventForm.longitude,
       contact_email: eventForm.contact_email,
       contact_phone: eventForm.contact_phone,
-      rso_id: isRSO ? rso.id : null,
+      rso_id: isRSO ? parseInt(eventForm.rso_id) : null,
       created_by: user.id,
       university_id: isPrivate || isRSO ? user.university_id : null,
       approved,
     };
-
-    console.log("📦 Payload:", payload);
 
     try {
       const res = await fetch("http://localhost:5000/api/create-event", {
@@ -378,6 +397,7 @@ export default function EventsPage() {
         contact_email: "",
         contact_phone: "",
         visibility: "",
+        rso_id: "", // reset it
       });
       fetchEvents(user.id);
     } catch (err) {
@@ -772,14 +792,24 @@ export default function EventsPage() {
               )}
 
               {eventForm.visibility === "rso" && (
-                <input
-                  className="w-full p-2 border rounded bg-gray-100"
-                  value={
-                    rsos.find((rso) => rso.admin_id === user.id)?.name ||
-                    "No RSO found"
+                <select
+                  className="w-full p-2 border rounded"
+                  value={eventForm.rso_id}
+                  onChange={(e) =>
+                    setEventForm((prev) => ({
+                      ...prev,
+                      rso_id: e.target.value,
+                    }))
                   }
-                  disabled
-                />
+                  required
+                >
+                  <option value="">Select an RSO</option>
+                  {allUniversityRsos.map((rso) => (
+                    <option key={rso.id} value={rso.id}>
+                      {rso.name}
+                    </option>
+                  ))}
+                </select>
               )}
 
               <input
