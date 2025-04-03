@@ -179,11 +179,34 @@ app.post("/api/join-rso", async (req, res) => {
   const { userId, rsoId } = req.body;
 
   try {
+    // Check if already a member (optional but good practice)
+    const [[existing]] = await db.query(
+      "SELECT * FROM rso_members WHERE user_id = ? AND rso_id = ?",
+      [userId, rsoId]
+    );
+
+    if (existing) {
+      return res
+        .status(400)
+        .json({ error: "User already a member of this RSO" });
+    }
+
+    // Insert the new member
     await db.query("INSERT INTO rso_members (user_id, rso_id) VALUES (?, ?)", [
       userId,
       rsoId,
     ]);
-    res.json({ message: "Joined RSO successfully" });
+
+    // Update members count and check if we need to reactivate the RSO
+    await db.query(
+      `UPDATE rsos
+       SET members = members + 1,
+           is_active = CASE WHEN members + 1 >= 5 THEN 1 ELSE is_active END
+       WHERE id = ?`,
+      [rsoId]
+    );
+
+    res.json({ message: "🎉 Joined RSO successfully" });
   } catch (err) {
     console.error("❌ Failed to join RSO:", err);
     res.status(500).json({ error: "Error joining RSO" });
@@ -222,6 +245,15 @@ app.post("/api/leave-rso", async (req, res) => {
       userId,
       rsoId,
     ]);
+
+    // Decrement member count and update active status
+    await db.query(
+      `UPDATE rsos
+   SET members = members - 1,
+       is_active = CASE WHEN members - 1 < 5 THEN 0 ELSE 1 END
+   WHERE id = ?`,
+      [rsoId]
+    );
 
     res.json({ message: "Left RSO successfully" });
   } catch (err) {
@@ -272,9 +304,9 @@ app.post("/api/create-rso", async (req, res) => {
         .status(400)
         .json({ error: "RSO with this name already exists." });
 
-    // 4. Insert into rsos table
+    // 4. Insert into rsos table (default to 5 members and active)
     const [rsoResult] = await db.query(
-      "INSERT INTO rsos (name, description, university_id, admin_id) VALUES (?, ?, ?, ?)",
+      "INSERT INTO rsos (name, description, university_id, admin_id, members, is_active) VALUES (?, ?, ?, ?, 5, 1)",
       [name, description, university_id, adminUser.id]
     );
 
