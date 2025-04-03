@@ -388,6 +388,12 @@ app.post("/api/create-event", async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Failed to create event:", err);
+
+    // Check for MySQL SIGNAL (trigger) errors
+    if (err.code === "ER_SIGNAL_EXCEPTION" || err.errno === 1644) {
+      return res.status(400).json({ error: err.sqlMessage });
+    }
+
     res.status(500).json({ error: "Server error creating event" });
   }
 });

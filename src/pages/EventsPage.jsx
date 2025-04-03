@@ -377,7 +377,10 @@ export default function EventsPage() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Failed to create event");
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to create event");
+      }
 
       alert(
         approved
@@ -402,7 +405,8 @@ export default function EventsPage() {
       fetchEvents(user.id);
     } catch (err) {
       console.error(err);
-      alert("❌ Cannot schedule. Conflict at this location and time.");
+      const message = err.message || "❌ Something went wrong.";
+      alert(message);
     }
   };
 
