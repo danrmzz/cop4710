@@ -382,7 +382,7 @@ export default function EventsPage() {
       fetchEvents(user.id);
     } catch (err) {
       console.error(err);
-      alert("❌ Could not create event");
+      alert("❌ Cannot schedule. Conflict at this location and time.");
     }
   };
 
