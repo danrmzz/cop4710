@@ -18,17 +18,16 @@ export default function LandingPage() {
     name: "",
     email: "",
     password: "",
-    university_id: "", // for regular users
-    university_name: "", // for super admins
-    description: "", // for super admins
-    location: "", // for super admins
-    student_count: "", // for super admins
-    pictures: "", // for super admins
+    university_id: "",
+    university_name: "",
+    description: "",
+    location: "",
+    student_count: "",
+    pictures: "",
   });
 
   const navigate = useNavigate();
 
-  // Fetch list of universities on component mount
   useEffect(() => {
     fetch("http://localhost:5000/api/universities")
       .then((res) => res.json())
@@ -74,7 +73,6 @@ export default function LandingPage() {
         if (!res.ok) throw new Error("Student signup failed");
       }
 
-      // Auto-login
       const loginRes = await fetch("http://localhost:5000/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,7 +108,6 @@ export default function LandingPage() {
       if (res.ok) {
         alert("✅ Logged in!");
         localStorage.setItem("user", JSON.stringify(data.user));
-        // Save session
         navigate("/events");
       } else {
         alert(`❌ ${data.error}`);

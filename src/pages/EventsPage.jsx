@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import "../App.css";
-import MapPicker from "../components/MapPicker"; // adjust path if needed
+import MapPicker from "../components/MapPicker";
 
 export default function EventsPage() {
   const [events, setEvents] = useState([]);
@@ -25,7 +25,7 @@ export default function EventsPage() {
 
   const [pendingCount, setPendingCount] = useState(0);
 
-  const [userRatings, setUserRatings] = useState({}); // { eventId: rating }
+  const [userRatings, setUserRatings] = useState({});
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [activeEventIdForComments, setActiveEventIdForComments] =
     useState(null);
@@ -63,7 +63,6 @@ export default function EventsPage() {
       fetchRatings();
     }
   }, [user.id]);
-  
 
   const openCommentsModal = async (eventId) => {
     setActiveEventIdForComments(eventId);
@@ -81,7 +80,7 @@ export default function EventsPage() {
       const res = await fetch("http://localhost:5000/api/unapproved-events");
       const data = await res.json();
       setPendingEvents(data);
-      setPendingCount(data.length); // Update count
+      setPendingCount(data.length);
     } catch (err) {
       console.error("Error fetching unapproved events", err);
     }
@@ -91,15 +90,15 @@ export default function EventsPage() {
     let interval;
 
     if (user.role === "super_admin") {
-      fetchPendingEvents(); // initial fetch
+      fetchPendingEvents();
 
       interval = setInterval(() => {
-        fetchPendingEvents(); // auto-refresh every 10s
-      }, 10000); // 10 seconds
+        fetchPendingEvents();
+      }, 10000);
     }
 
     return () => {
-      if (interval) clearInterval(interval); // cleanup on unmount
+      if (interval) clearInterval(interval);
     };
   }, [user.role]);
 
@@ -112,8 +111,8 @@ export default function EventsPage() {
       });
 
       alert("✅ Event approved!");
-      fetchPendingEvents(); // refresh list
-      fetchEvents(user.id); // optional: refresh main feed
+      fetchPendingEvents();
+      fetchEvents(user.id);
     } catch (err) {
       console.error("Failed to approve event", err);
       alert("❌ Could not approve event");
@@ -135,7 +134,7 @@ export default function EventsPage() {
 
       alert("✅ Event deleted.");
       fetchEvents(user.id);
-      fetchPendingEvents(); // optional refresh if needed
+      fetchPendingEvents();
     } catch (err) {
       console.error("Failed to delete approved event", err);
       alert("❌ Could not delete event");
@@ -152,7 +151,7 @@ export default function EventsPage() {
 
       alert("🗑️ Event disapproved and deleted.");
       fetchPendingEvents();
-      fetchEvents(user.id); // refresh main feed if needed
+      fetchEvents(user.id);
     } catch (err) {
       console.error("Failed to delete event", err);
       alert("❌ Could not disapprove event");
@@ -173,8 +172,8 @@ export default function EventsPage() {
     longitude: null,
     contact_email: "",
     contact_phone: "",
-    visibility: "", // NEW
-    rso_id: "", // 🆕 Add this
+    visibility: "",
+    rso_id: "",
   });
 
   const [rsoForm, setRsoForm] = useState({
@@ -198,7 +197,7 @@ export default function EventsPage() {
       fetchEvents(storedUser.id);
       fetchRsos(storedUser.id);
       fetchUniversity(storedUser.id);
-      fetchAllRsosAtUniversity(storedUser.university_id); // ✅
+      fetchAllRsosAtUniversity(storedUser.university_id);
     }
   }, []);
 
@@ -252,7 +251,6 @@ export default function EventsPage() {
   const handleLeaveRso = async (rsoId) => {
     const rso = rsos.find((r) => r.id === rsoId);
 
-    // Only show confirmation if the user is the admin (disbanding)
     if (rso && rso.admin_id === user.id) {
       const confirm = window.confirm(
         "⚠️ You are the admin of this RSO. Disbanding will:\n\n• Delete this RSO\n• Remove all its members\n• Delete all events\n\nAre you sure?"
@@ -405,7 +403,7 @@ export default function EventsPage() {
         contact_email: "",
         contact_phone: "",
         visibility: "",
-        rso_id: "", // reset it
+        rso_id: "",
       });
       fetchEvents(user.id);
     } catch (err) {
@@ -1118,7 +1116,7 @@ export default function EventsPage() {
                                     body: JSON.stringify({ userId: user.id }),
                                   }
                                 );
-                                openCommentsModal(activeEventIdForComments); // Refresh list
+                                openCommentsModal(activeEventIdForComments);
                               }}
                             >
                               🗑️
@@ -1151,7 +1149,7 @@ export default function EventsPage() {
                 });
 
                 form.reset();
-                openCommentsModal(activeEventIdForComments); // refresh comments
+                openCommentsModal(activeEventIdForComments);
               }}
             >
               <textarea

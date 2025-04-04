@@ -294,7 +294,7 @@ app.post("/api/create-rso", async (req, res) => {
 
     const rsoId = rsoResult.insertId;
 
-    // 🆙 Promote user to admin
+    //  Promote user to admin
     await db.query("UPDATE users SET role = 'admin' WHERE id = ?", [
       adminUser.id,
     ]);
@@ -356,7 +356,7 @@ app.post("/api/create-event", async (req, res) => {
   }
 
   try {
-    // 🔍 Fetch university_id from the user's account
+    //  Fetch university_id from the user's account
     const [[user]] = await db.query(
       "SELECT university_id FROM users WHERE id = ?",
       [created_by]
@@ -487,7 +487,7 @@ app.post("/api/superadmin-signup", async (req, res) => {
 
     const universityId = uniResult.insertId;
 
-    // ✅ 3. Update the user’s university_id
+    // 3. Update the user’s university_id
     await db.query("UPDATE users SET university_id = ? WHERE id = ?", [
       universityId,
       userId,

@@ -42,8 +42,8 @@ function SearchControl({ setCoords }) {
     map.addControl(searchControl);
 
     // Prevent Leaflet from hijacking keyboard focus
-    map.getContainer().tabIndex = "0"; // necessary if not already focusable
-    map.keyboard.disable(); // this is still good
+    map.getContainer().tabIndex = "0";
+    map.keyboard.disable();
 
     map.on("geosearch/showlocation", (result) => {
       const { label, location } = result;
@@ -54,7 +54,6 @@ function SearchControl({ setCoords }) {
       });
     });
 
-    // 🧠 Optional: Force input to keep focus
     setTimeout(() => {
       const input = document.querySelector(".leaflet-control-geosearch input");
       if (input) input.focus();
@@ -63,12 +62,12 @@ function SearchControl({ setCoords }) {
     return () => {
       map.removeControl(searchControl);
     };
-  }, []); // <-- empty dependency array!
+  }, []);
 
   return null;
 }
 
-// 📍 Clickable marker logic
+// Clickable marker logic
 function LocationMarker({ setCoords }) {
   const [position, setPosition] = useState(null);
 
@@ -83,7 +82,7 @@ function LocationMarker({ setCoords }) {
   return position ? <Marker position={[position.lat, position.lng]} /> : null;
 }
 
-// 🗺️ Main export
+//  Main export
 export default function MapPicker({ setCoords }) {
   return (
     <div className="h-64 mb-3">
