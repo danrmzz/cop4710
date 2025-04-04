@@ -197,8 +197,6 @@ app.post("/api/join-rso", async (req, res) => {
       rsoId,
     ]);
 
-    
-
     res.json({ message: "🎉 Joined RSO successfully" });
   } catch (err) {
     console.error("❌ Failed to join RSO:", err);
@@ -216,16 +214,16 @@ app.post("/api/leave-rso", async (req, res) => {
     if (!rso) return res.status(404).json({ error: "RSO not found" });
 
     if (rso.admin_id === userId) {
-      // 1. Delete all events for this RSO
+      // Delete all events for this RSO
       await db.query("DELETE FROM events WHERE rso_id = ?", [rsoId]);
 
-      // 2. Remove all members from rso_members
+      // Remove all members from rso_members
       await db.query("DELETE FROM rso_members WHERE rso_id = ?", [rsoId]);
 
-      // 3. Delete the RSO itself
+      // Delete the RSO itself
       await db.query("DELETE FROM rsos WHERE id = ?", [rsoId]);
 
-      // 4. Demote the user back to student
+      // Demote the user back to student
       await db.query("UPDATE users SET role = 'student' WHERE id = ?", [
         userId,
       ]);
@@ -238,8 +236,6 @@ app.post("/api/leave-rso", async (req, res) => {
       userId,
       rsoId,
     ]);
-
-    
 
     res.json({ message: "Left RSO successfully" });
   } catch (err) {

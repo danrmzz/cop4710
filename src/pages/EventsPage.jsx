@@ -58,7 +58,12 @@ export default function EventsPage() {
     setUserRatings(formatted);
   };
 
-  fetchRatings();
+  useEffect(() => {
+    if (user?.id) {
+      fetchRatings();
+    }
+  }, [user.id]);
+  
 
   const openCommentsModal = async (eventId) => {
     setActiveEventIdForComments(eventId);
